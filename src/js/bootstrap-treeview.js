@@ -142,7 +142,12 @@
 
 			// Search methods
 			search: $.proxy(this.search, this),
-			clearSearch: $.proxy(this.clearSearch, this)
+			clearSearch: $.proxy(this.clearSearch, this),
+
+            // Add methods
+            addSibling: $.proxy(this.addSibling, this),
+            addChild: $.proxy(this.addChild, this),
+            deleteNode: $.proxy(this.deleteNode, this)
 		};
 	};
 
@@ -261,58 +266,61 @@
 
 		var parent = node;
 		var _this = this;
-		$.each(node.nodes, function checkStates(index, node) {
-
-			// nodeId : unique, incremental identifier
-			node.nodeId = _this.nodes.length;
-
-			// parentId : transversing up the tree
-			node.parentId = parent.nodeId;
-
-			// if not provided set selectable default value
-			if (!node.hasOwnProperty('selectable')) {
-				node.selectable = true;
-			}
-
-			// where provided we should preserve states
-			node.state = node.state || {};
-
-			// set checked state; unless set always false
-			if (!node.state.hasOwnProperty('checked')) {
-				node.state.checked = false;
-			}
-
-			// set enabled state; unless set always false
-			if (!node.state.hasOwnProperty('disabled')) {
-				node.state.disabled = false;
-			}
-
-			// set expanded state; if not provided based on levels
-			if (!node.state.hasOwnProperty('expanded')) {
-				if (!node.state.disabled &&
-						(level < _this.options.levels) &&
-						(node.nodes && node.nodes.length > 0)) {
-					node.state.expanded = true;
-				}
-				else {
-					node.state.expanded = false;
-				}
-			}
-
-			// set selected state; unless set always false
-			if (!node.state.hasOwnProperty('selected')) {
-				node.state.selected = false;
-			}
-
-			// index nodes in a flattened structure for use later
-			_this.nodes.push(node);
-
-			// recurse child nodes and transverse the tree
-			if (node.nodes) {
-				_this.setInitialStates(node, level);
-			}
-		});
+		$.each(node.nodes, function(index, node) {
+            _this.checkStates(parent, node, level);
+        });
 	};
+
+    Tree.prototype.checkStates = function (parent, node, level) {
+        // nodeId : unique, incremental identifier
+        node.nodeId = this.nodes.length;
+
+        // parentId : transversing up the tree
+        node.parentId = parent.nodeId;
+
+        // if not provided set selectable default value
+        if (!node.hasOwnProperty('selectable')) {
+            node.selectable = true;
+        }
+
+        // where provided we should preserve states
+        node.state = node.state || {};
+
+        // set checked state; unless set always false
+        if (!node.state.hasOwnProperty('checked')) {
+            node.state.checked = false;
+        }
+
+        // set enabled state; unless set always false
+        if (!node.state.hasOwnProperty('disabled')) {
+            node.state.disabled = false;
+        }
+
+        // set expanded state; if not provided based on levels
+        if (!node.state.hasOwnProperty('expanded')) {
+            if (!node.state.disabled &&
+                (level < this.options.levels) &&
+                (node.nodes && node.nodes.length > 0)) {
+                node.state.expanded = true;
+            }
+            else {
+                node.state.expanded = false;
+            }
+        }
+
+        // set selected state; unless set always false
+        if (!node.state.hasOwnProperty('selected')) {
+            node.state.selected = false;
+        }
+
+        // index nodes in a flattened structure for use later
+        this.nodes.push(node);
+
+        // recurse child nodes and transverse the tree
+        if (node.nodes) {
+            this.setInitialStates(node, level);
+        }
+    }
 
 	Tree.prototype.clickHandler = function (event) {
 
@@ -321,7 +329,7 @@
 		var target = $(event.target);
 		var node = this.findNode(target);
 		if (!node || node.state.disabled) return;
-		
+
 		var classList = target.attr('class') ? target.attr('class').split(' ') : [];
 		if ((classList.indexOf('expand-icon') !== -1)) {
 
@@ -329,12 +337,12 @@
 			this.render();
 		}
 		else if ((classList.indexOf('check-icon') !== -1)) {
-			
+
 			this.toggleCheckedState(node, _default.options);
 			this.render();
 		}
 		else {
-			
+
 			if (node.selectable) {
 				this.toggleSelectedState(node, _default.options);
 			} else {
@@ -510,104 +518,7 @@
 
 		var _this = this;
 		$.each(nodes, function addNodes(id, node) {
-
-			var treeItem = $(_this.template.item)
-				.addClass('node-' + _this.elementId)
-				.addClass(node.state.checked ? 'node-checked' : '')
-				.addClass(node.state.disabled ? 'node-disabled': '')
-				.addClass(node.state.selected ? 'node-selected' : '')
-				.addClass(node.searchResult ? 'search-result' : '') 
-				.attr('data-nodeid', node.nodeId)
-				.attr('style', _this.buildStyleOverride(node));
-
-			// Add indent/spacer to mimic tree structure
-			for (var i = 0; i < (level - 1); i++) {
-				treeItem.append(_this.template.indent);
-			}
-
-			// Add expand, collapse or empty spacer icons
-			var classList = [];
-			if (node.nodes) {
-				classList.push('expand-icon');
-				if (node.state.expanded) {
-					classList.push(_this.options.collapseIcon);
-				}
-				else {
-					classList.push(_this.options.expandIcon);
-				}
-			}
-			else {
-				classList.push(_this.options.emptyIcon);
-			}
-
-			treeItem
-				.append($(_this.template.icon)
-					.addClass(classList.join(' '))
-				);
-
-
-			// Add node icon
-			if (_this.options.showIcon) {
-				
-				var classList = ['node-icon'];
-
-				classList.push(node.icon || _this.options.nodeIcon);
-				if (node.state.selected) {
-					classList.pop();
-					classList.push(node.selectedIcon || _this.options.selectedIcon || 
-									node.icon || _this.options.nodeIcon);
-				}
-
-				treeItem
-					.append($(_this.template.icon)
-						.addClass(classList.join(' '))
-					);
-			}
-
-			// Add check / unchecked icon
-			if (_this.options.showCheckbox) {
-
-				var classList = ['check-icon'];
-				if (node.state.checked) {
-					classList.push(_this.options.checkedIcon); 
-				}
-				else {
-					classList.push(_this.options.uncheckedIcon);
-				}
-
-				treeItem
-					.append($(_this.template.icon)
-						.addClass(classList.join(' '))
-					);
-			}
-
-			// Add text
-			if (_this.options.enableLinks) {
-				// Add hyperlink
-				treeItem
-					.append($(_this.template.link)
-						.attr('href', node.href)
-						.append(node.text)
-					);
-			}
-			else {
-				// otherwise just text
-				treeItem
-					.append(node.text);
-			}
-
-			// Add tags as badges
-			if (_this.options.showTags && node.tags) {
-				$.each(node.tags, function addTag(id, tag) {
-					treeItem
-						.append($(_this.template.badge)
-							.append(tag)
-						);
-				});
-			}
-
-			// Add item to the tree
-			_this.$wrapper.append(treeItem);
+            _this.addNode(node, level);
 
 			// Recursively add child ndoes
 			if (node.nodes && node.state.expanded && !node.state.disabled) {
@@ -615,6 +526,116 @@
 			}
 		});
 	};
+
+    Tree.prototype.addNode = function (node, level = undefined) {
+        if (level === undefined) {
+            let tmp = node;
+
+            level = 0;
+            while (tmp) {
+                level++;
+                tmp = this.getParent(tmp);
+            }
+        }
+
+        var treeItem = $(this.template.item)
+            .addClass('node-' + this.elementId)
+            .addClass(node.state.checked ? 'node-checked' : '')
+            .addClass(node.state.disabled ? 'node-disabled': '')
+            .addClass(node.state.selected ? 'node-selected' : '')
+            .addClass(node.searchResult ? 'search-result' : '')
+            .attr('data-nodeid', node.nodeId)
+            .attr('style', this.buildStyleOverride(node));
+
+        // Add indent/spacer to mimic tree structure
+        for (var i = 0; i < (level - 1); i++) {
+            treeItem.append(this.template.indent);
+        }
+
+        // Add expand, collapse or empty spacer icons
+        var classList = [];
+        if (node.nodes) {
+            classList.push('expand-icon');
+            if (node.state.expanded) {
+                classList.push(this.options.collapseIcon);
+            }
+            else {
+                classList.push(this.options.expandIcon);
+            }
+        }
+        else {
+            classList.push(this.options.emptyIcon);
+        }
+
+        treeItem
+            .append($(this.template.icon)
+                .addClass(classList.join(' '))
+            );
+
+
+        // Add node icon
+        if (this.options.showIcon) {
+
+            var classList = ['node-icon'];
+
+            classList.push(node.icon || this.options.nodeIcon);
+            if (node.state.selected) {
+                classList.pop();
+                classList.push(node.selectedIcon || this.options.selectedIcon ||
+                    node.icon || this.options.nodeIcon);
+            }
+
+            treeItem
+                .append($(this.template.icon)
+                    .addClass(classList.join(' '))
+                );
+        }
+
+        // Add check / unchecked icon
+        if (this.options.showCheckbox) {
+
+            var classList = ['check-icon'];
+            if (node.state.checked) {
+                classList.push(this.options.checkedIcon);
+            }
+            else {
+                classList.push(this.options.uncheckedIcon);
+            }
+
+            treeItem
+                .append($(this.template.icon)
+                    .addClass(classList.join(' '))
+                );
+        }
+
+        // Add text
+        if (this.options.enableLinks) {
+            // Add hyperlink
+            treeItem
+                .append($(this.template.link)
+                    .attr('href', node.href)
+                    .append(node.text)
+                );
+        }
+        else {
+            // otherwise just text
+            treeItem
+                .append(node.text);
+        }
+
+        // Add tags as badges
+        if (this.options.showTags && node.tags) {
+            $.each(node.tags, function addTag(id, tag) {
+                treeItem
+                    .append($(this.template.badge)
+                        .append(tag)
+                    );
+            });
+        }
+
+        // Add item to the tree
+        this.$wrapper.append(treeItem);
+    }
 
 	// Define any node level style override for
 	// 1. selectedNode
@@ -706,6 +727,48 @@
 	Tree.prototype.getNode = function (nodeId) {
 		return this.nodes[nodeId];
 	};
+
+    Tree.prototype.addSibling = function (nodeId, newNode) {
+        var node = this.getNode(nodeId);
+        var parent = node ? this.getParent(node) : undefined;
+
+        if (!parent) {
+            parent = { nodes: this.tree };
+        }
+
+        parent.nodes.push(newNode);
+        this.setInitialStates(parent);
+        this.render();
+    }
+
+    Tree.prototype.addChild = function (nodeId, newNode) {
+        var node = this.getNode(nodeId);
+
+        if (!node.nodes) {
+            node.nodes = [];
+        }
+
+        node.state.expanded = true;
+        node.nodes.push(newNode);
+        this.setInitialStates(node);
+        this.selectNode(newNode);
+    }
+
+    Tree.prototype.deleteNode = function (nodeId) {
+        var node = this.getNode(nodeId);
+        var parent = this.getParent(node);
+
+        if (!parent) {
+            this.tree = this.tree.filter(subnode => subnode.nodeId !== nodeId);
+        } else {
+            parent.nodes = parent.nodes.filter(subnode => subnode.nodeId !== nodeId);
+            if (parent.nodes.length === 0) {
+                delete parent.nodes;
+            }
+        }
+
+        this.render();
+    }
 
 	/**
 		Returns the parent node of a given node, if valid otherwise returns undefined.
@@ -935,7 +998,7 @@
 		this.forEachIdentifier(identifiers, options, $.proxy(function (node, options) {
 			this.toggleExpandedState(node, options);
 		}, this));
-		
+
 		this.render();
 	};
 
@@ -1085,7 +1148,7 @@
 
 		$.each(identifiers, $.proxy(function (index, identifier) {
 			callback(this.identifyNode(identifier), options);
-		}, this));	
+		}, this));
 	};
 
 	/*
@@ -1156,9 +1219,9 @@
 		});
 
 		if (options.render) {
-			this.render();	
+			this.render();
 		}
-		
+
 		this.$element.trigger('searchCleared', $.extend(true, {}, results));
 	};
 
